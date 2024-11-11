@@ -9,7 +9,6 @@ dotenv.config();
 const app = express();
 
 app.use(cors());
-
 app.use(express.json());
 
 const upload = multer({ dest: "uploads/" });
@@ -29,6 +28,7 @@ db.connect((err) => {
   }
   console.log("Connected to the database");
 });
+
 
 app.post("/api/files/upload", upload.single("file"), async (req, res) => {
   try {
@@ -53,6 +53,42 @@ app.post("/api/files/upload", upload.single("file"), async (req, res) => {
     console.error("Error uploading file:", error);
     res.status(500).send("Error uploading file");
   }
+});
+
+
+app.post("/api/users", async (req, res) => {
+  const { username, password, email } = req.body;
+
+  if (!username || !password || !email) {
+    return res.status(400).send("All fields (username, password, email) are required.");
+  }
+
+  db.query(
+    "SELECT * FROM users WHERE username = ? OR email = ?",
+    [username, email],
+    (err, results) => {
+      if (err) {
+        console.error("Database error:", err);
+        return res.status(500).send("Error checking user existence.");
+      }
+
+      if (results.length > 0) {
+        return res.status(400).send("Username or email already exists.");
+      }
+
+      db.query(
+        "INSERT INTO users (username, password, email) VALUES (?, ?, ?)",
+        [username, password, email],
+        (err, results) => {
+          if (err) {
+            console.error("Database error:", err);
+            return res.status(500).send("Error creating user.");
+          }
+          res.status(201).send("User created successfully.");
+        }
+      );
+    }
+  );
 });
 
 app.listen(process.env.PORT, () => {
